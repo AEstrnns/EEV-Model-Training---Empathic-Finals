@@ -1,6 +1,6 @@
 pandas
 numpy
-opencv-python
+opencv-python-headless
 requests
 tqdm
 scikit-learn

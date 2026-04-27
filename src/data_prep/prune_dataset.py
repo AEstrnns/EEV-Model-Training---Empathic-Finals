@@ -4,9 +4,11 @@ from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 from tqdm import tqdm
 
-# Define paths
-RAW_DIR = Path("../../data/raw")
-PROCESSED_DIR = Path("../../data/processed")
+# Define paths using absolute paths based on script location
+SCRIPT_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = SCRIPT_DIR.parent.parent
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 
 def is_video_available(video_id: str) -> bool:
@@ -31,8 +33,18 @@ def prune_split(file_name: str):
     print(f"Processing {file_name}...")
     df = pd.read_csv(input_path)
     
+    # Handle both 'YouTube ID' and 'Video ID' column names
+    video_id_col = None
+    if 'YouTube ID' in df.columns:
+        video_id_col = 'YouTube ID'
+    elif 'Video ID' in df.columns:
+        video_id_col = 'Video ID'
+    else:
+        print(f"Error: Neither 'YouTube ID' nor 'Video ID' column found in {file_name}")
+        return
+    
     # Get unique video IDs to minimize network requests
-    unique_videos = df['video_id'].unique()
+    unique_videos = df[video_id_col].unique()
     
     # Use multi-threading to check URLs concurrently
     valid_videos = set()
@@ -44,7 +56,7 @@ def prune_split(file_name: str):
             valid_videos.add(vid)
             
     # Filter the dataframe to only include rows with valid videos
-    pruned_df = df[df['video_id'].isin(valid_videos)]
+    pruned_df = df[df[video_id_col].isin(valid_videos)]
     pruned_df.to_csv(output_path, index=False)
     print(f"Saved {output_path.name}. Retained {len(pruned_df)} out of {len(df)} annotations.\n")
 
