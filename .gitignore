@@ -3,14 +3,9 @@ __pycache__/
 *.pyc
 .env
 
-# Virtual Environment (CRITICAL)
+# Virtual Environment 
 venv/
 env/
-
-# Massive Data Folders (Keeps GitHub from freezing)
-data/raw/videos/
-data/processed/frames/
-data/processed/features/
 
 # IDE specific files
 .vscode/
