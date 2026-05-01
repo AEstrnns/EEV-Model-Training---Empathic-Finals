@@ -7,11 +7,6 @@ __pycache__/
 venv/
 env/
 
-# Massive Data Folders (Keeps GitHub from freezing)
-data/raw/videos/
-data/processed/frames/
-data/processed/features/
-
 # IDE specific files
 .vscode/
 .DS_Store
