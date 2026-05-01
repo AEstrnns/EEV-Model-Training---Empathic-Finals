@@ -3,10 +3,12 @@ __pycache__/
 *.pyc
 .env
 
-# Virtual Environment 
+# Virtual Environment
+.venv/ 
 venv/
 env/
 
 # IDE specific files
 .vscode/
 .DS_Store
+.idea/
