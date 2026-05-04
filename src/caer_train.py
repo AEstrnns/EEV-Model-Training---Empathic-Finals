@@ -5,9 +5,12 @@ import json
 from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DATA_PATH = PROJECT_ROOT / "data" / "processed" / "train_pruned.csv"
-WEIGHTS_PATH = PROJECT_ROOT / "weights" / "class_weights.json"
+COLAB_PATH = Path("/content/drive/MyDrive/EMPATHIC_PROJECT/EEV-Model-Training---Empathic-Finals")
+DATA_PATH = COLAB_PATH / "data" / "processed" / "train_pruned.csv"
+WEIGHTS_PATH = COLAB_PATH / "weights" / "class_weights.json"
+CHECKPOINT_PATH = COLAB_PATH / "weights" / "caer_model_turbo.pth"
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 EXPRESSION_COLUMNS = [
     'amusement', 'anger', 'awe', 'concentration', 'confusion',
@@ -15,9 +18,10 @@ EXPRESSION_COLUMNS = [
     'elation', 'interest', 'pain', 'sadness', 'surprise', 'triumph'
 ]
 
-# 1. THE DATASET BRIDGE
+# 1. THE DATASET
 class EEVDataset(Dataset):
     def __init__(self, csv_file):
+        # Loading 5.1M samples
         self.data = pd.read_csv(csv_file)
         
     def __len__(self):
@@ -27,6 +31,7 @@ class EEVDataset(Dataset):
         row = self.data.iloc[idx]
         labels = torch.tensor(row[EXPRESSION_COLUMNS].values.astype('float32'))
         
+        # Placeholders for face and context stream images
         face_img = torch.randn(3, 224, 224)    
         context_img = torch.randn(3, 224, 224) 
         
@@ -57,39 +62,62 @@ class CAERNetRS(nn.Module):
 # 3. LOAD CLASS WEIGHTS
 with open(WEIGHTS_PATH, 'r') as f:
     weights_dict = json.load(f)
-weights_tensor = torch.tensor([weights_dict[exp] for exp in EXPRESSION_COLUMNS])
+weights_tensor = torch.tensor([weights_dict[exp] for exp in EXPRESSION_COLUMNS]).to(device)
 
+# 4. MAIN TRAINING EXECUTION
 if __name__ == "__main__":
-    # 4. STARTING THE TRAINING SETUP
     dataset = EEVDataset(DATA_PATH)
-    loader = DataLoader(dataset, batch_size=32, shuffle=True)
-    model = CAERNetRS()
+    loader = DataLoader(
+        dataset, 
+        batch_size=256, 
+        shuffle=True, 
+        num_workers=2, 
+        pin_memory=True
+    )
+    
+    model = CAERNetRS().to(device)
     criterion = nn.MSELoss() 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
-    print(f"Ready! Training CAER-Net-RS on {len(dataset)} pruned samples.")
+    # Resume from checkpoint if it exists
+    if CHECKPOINT_PATH.exists():
+        print(f"!!! SUCCESS: Restoring progress from: {CHECKPOINT_PATH} !!!")
+        model.load_state_dict(torch.load(CHECKPOINT_PATH, map_location=device))
+    else:
+        print(f"No checkpoint found at {CHECKPOINT_PATH}. Starting fresh pass.")
 
-    # 5. FINE-TUNING THE LEARNING RATE
-    learning_rates = [0.01, 0.001, 0.0001]
-    num_steps_to_test = 500
+    print(f"Turbo Mode Initialized. Training on {len(dataset)} samples for 1 Epoch.")
 
-    for lr in learning_rates:
-        print(f"\n--- Testing Learning Rate: {lr} ---")
-        model = CAERNetRS() # Reset the model for each test
-        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    # 5. TRAINING LOOP
+    model.train()
+    running_loss = 0.0
+    
+    for i, (faces, contexts, labels) in enumerate(loader):
+        faces, contexts, labels = faces.to(device), contexts.to(device), labels.to(device)
         
-        model.train()
-        for i, (faces, contexts, labels) in enumerate(loader):
-            optimizer.zero_grad()
-            outputs = model(faces, contexts)
-            loss = criterion(outputs, labels)
-            loss.backward()
-            optimizer.step()
-            
-            if (i + 1) % 100 == 0:
-                print(f"LR: {lr} | Step [{i+1}/{num_steps_to_test}] | Loss: {loss.item():.4f}")
-            
-            if (i + 1) >= num_steps_to_test:
-                break
+        optimizer.zero_grad()
+        outputs = model(faces, contexts)
+        loss = criterion(outputs, labels)
+        
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item()
+        
+        # Log every 200 steps
+        if (i + 1) % 200 == 0:
+            avg_batch_loss = running_loss / 200
+            progress = (i / len(loader)) * 100
+            print(f"Step [{i+1}/{len(loader)}] | Loss: {avg_batch_loss:.4f} | Progress: {progress:.2f}%")
+            running_loss = 0.0
 
-print("\nFine-tuning test complete.")
+        # Save checkpoint every 2000 steps
+        if (i + 1) % 2000 == 0:
+            torch.save(model.state_dict(), CHECKPOINT_PATH)
+            print(f"--> Safety Checkpoint saved at step {i+1}")
+
+    COLAB_PATH.joinpath("weights").mkdir(exist_ok=True)
+    final_path = COLAB_PATH / "weights" / "caer_model_final_epoch1.pth"
+    torch.save(model.state_dict(), final_path)
+    
+    print(f"Training complete.")
