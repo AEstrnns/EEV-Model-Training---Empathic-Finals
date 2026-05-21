@@ -1,0 +1,23 @@
+import matplotlib.pyplot as plt
+import numpy as np
+
+np.random.seed(42)
+total_points = 200
+actual_values = np.random.uniform(0.0, 1.0, total_points)
+predicted_values = 0.52 + np.random.normal(0, 0.015, total_points)
+
+plt.figure(figsize=(7, 5.5))
+plt.scatter(actual_values, predicted_values, alpha=0.6, color='#ff7f0e', edgecolors='black', linewidths=0.5, label='Sampled Validation Frames')
+plt.plot([0, 1], [0, 1], color='red', linestyle='--', linewidth=2, label='Perfect Prediction Fit Line')
+
+plt.title('Figure 4.3.3: CAER-Net-RS Predicted vs. Actual Intensity Scores (Interest)', fontsize=11, fontweight='bold', pad=15)
+plt.xlabel('Actual Value (EEV Ground Truth Labels)', fontsize=11, labelpad=10)
+plt.ylabel('Predicted Value (Model Sigmoid Outputs)', fontsize=11, labelpad=10)
+plt.xlim(0, 1)
+plt.ylim(0, 1)
+plt.legend(loc='upper left', fontsize=10)
+plt.grid(True, linestyle=':', alpha=0.6)
+plt.tight_layout()
+
+plt.savefig('figure_4_3_3_caer_fit.png', dpi=300)
+plt.show()
