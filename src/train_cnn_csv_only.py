@@ -8,6 +8,9 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from tqdm import tqdm
 
+# NEW: Import scikit-learn for all the classification metrics!
+from sklearn.metrics import classification_report, multilabel_confusion_matrix
+
 # ==========================================
 # SATISFIES BULLET 1: Hyperparameters
 # ==========================================
@@ -72,19 +75,14 @@ class EEVSequenceDataset(Dataset):
         print(f"Loading {Path(csv_path).name} into RAM (Lazy Loading enabled)...")
         self.df = pd.read_csv(csv_path)
         
-        # Format columns perfectly
         self.df.columns = self.df.columns.str.strip()
         vid_col = next((col for col in self.df.columns if col.lower() in ['video_id', 'youtube_id', 'id']), 'YouTube ID')
         time_col = next((col for col in self.df.columns if col.lower() in ['timestamp_ms', 'timestamp']), 'Timestamp (milliseconds)')
         
-        # Sort and reset index so the row numbers are perfectly sequential
         self.df = self.df.sort_values(by=[vid_col, time_col]).reset_index(drop=True)
-        
-        # Convert just the numbers to float32 immediately to save memory (~300MB instead of 17GB)
         self.features = self.df[EXPRESSIONS].values.astype(np.float32)
         self.seq_len = seq_len
         
-        # Find valid starting rows (so a sequence doesn't accidentally bleed from one video into the next)
         self.valid_indices = []
         grouped = self.df.groupby(vid_col)
         
@@ -98,7 +96,6 @@ class EEVSequenceDataset(Dataset):
         return len(self.valid_indices)
 
     def __getitem__(self, idx):
-        # This only builds the sequence at the EXACT moment the CNN asks for it
         start_row = self.valid_indices[idx]
         X = self.features[start_row : start_row + self.seq_len]
         Y = self.features[start_row + self.seq_len]
@@ -114,7 +111,6 @@ def train_model():
     train_path = project_root / "data" / "processed" / "train_pruned.csv"
     val_path = project_root / "data" / "processed" / "val_pruned.csv"
     
-    # Using our new memory-saving Dataset class!
     train_dataset = EEVSequenceDataset(train_path, CONFIG["sequence_length"])
     val_dataset = EEVSequenceDataset(val_path, CONFIG["sequence_length"])
     
@@ -172,6 +168,40 @@ def train_model():
     out_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_path)
     print(f"\nCNN Graph saved to {out_path}")
+
+    # ==========================================
+    # NEW: F1, PRECISION, RECALL, CONFUSION MATRIX
+    # ==========================================
+    print("\n--- CALCULATING FINAL METRICS ON VALIDATION SET ---")
+    model.eval()
+    all_preds = []
+    all_targets = []
+    
+    with torch.no_grad():
+        for batch_X, batch_Y in val_loader:
+            preds = model(batch_X)
+            # Threshold predictions at 0.5 to convert to binary (1 or 0)
+            binary_preds = (preds > 0.5).float()
+            binary_targets = (batch_Y > 0.5).float()
+            
+            all_preds.append(binary_preds.cpu().numpy())
+            all_targets.append(binary_targets.cpu().numpy())
+            
+    # Stack all batches together
+    y_pred = np.vstack(all_preds)
+    y_true = np.vstack(all_targets)
+    
+    # 1. Print Precision, Recall, and F1 for EVERY emotion
+    print("\n[ Classification Report ]")
+    print(classification_report(y_true, y_pred, target_names=EXPRESSIONS, zero_division=0))
+    
+    # 2. Print Confusion Matrices (Multi-label means 1 matrix per emotion)
+    print("\n[ Confusion Matrices (Per Emotion) ]")
+    matrices = multilabel_confusion_matrix(y_true, y_pred)
+    for i, emotion in enumerate(EXPRESSIONS):
+        print(f"\n{emotion.upper()}:")
+        print(f"True Negatives:  {matrices[i][0][0]} | False Positives: {matrices[i][0][1]}")
+        print(f"False Negatives: {matrices[i][1][0]} | True Positives:  {matrices[i][1][1]}")
 
 if __name__ == "__main__":
     train_model()
