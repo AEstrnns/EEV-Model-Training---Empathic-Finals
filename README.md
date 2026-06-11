@@ -1,11 +1,15 @@
-# Contributors
+# Contributors (This Repository)
 CYS: BCS34
 Aira Sophia Estorninos
 Joseph Christian Cinco
 Ian Carlo Guevarra
 
+# Our Paper Abstract (This Project)
+Most conventional surveys that aim to elicit natural subconscious consumer feedback towards video advertisements fail due to self-reporting bias and slogan blindness. To this effect, we assess the ability of deep learning networks to predict continuous subconscious emotion states. Using the Evoked Expressions in Video (EEV) dataset, which includes annotations at a high frequency (6 Hz) of 15 continuous emotions, we tested three models namely CNN, LSTM and CAER-Net-RS. In terms of overall predictive accuracy, LSTM models performed best (MSE = 0.0018, R = 0.9299) and revealed better potential to capture time-varying emotional dynamics. CNN architecture presented very promising spatial feature extraction (MSE = 0.0019), and CAER-Net-RS model showed strong and robust performance of global baseline which implies structural stability in context-based environment data processing. We successfully proved that the spatiotemporal machine learning can measure continuous emotion trajectory in real-time and thus provided an effective, data-driven method for automated audience analysis and neuromarketing assessment. 
 
-# Evoked Expressions in Video (EEV) Dataset
+
+
+# About Evoked Expressions in Video (EEV) Dataset
 
 Videos can evoke a range of affective responses in viewers. The ability to predict evoked affect from a video, before viewers watch the video, can help in content creation and video recommendation. We introduce the Evoked Expressions from Videos (EEV) dataset, a large-scale dataset for studying viewer responses to videos. Each video is annotated at 6 Hz with 15 continuous evoked expression labels, corresponding to the facial expression of viewers who reacted to the video. We use an expression recognition model within our data collection framework to achieve scalability. In total, there are 8 million annotations of viewer facial reactions to 5,153 videos (370 hours). We use a publicly available video platform to obtain a diverse set of video content. We hope that the size and diversity of the EEV dataset will encourage further explorations in video understanding and affective computing.
 
